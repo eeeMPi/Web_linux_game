@@ -1,3 +1,4 @@
+# 100% MADE BY AI
 # INSTALUJ ARCH
 
 Prohlížečová hra: nainstaluj Arch Linux do notebooku a na konci spusť window manager.
