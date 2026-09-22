@@ -645,6 +645,174 @@
     return STEPS.find((s) => !s.done()) || STEPS[STEPS.length - 1];
   }
 
+  function partDev(part) {
+    return part ? "/dev/nvme0n1p" + part.num : null;
+  }
+
+  function guideText(step) {
+    const efi = efiPart();
+    const root = rootPart();
+    const sw = swapPart();
+    const efiDev = partDev(efi);
+    const rootDev = partDev(root);
+    const swDev = partDev(sw);
+    const rootUuid = root && S.fs[root.num] ? S.fs[root.num].uuid : null;
+    const km = CZECH_MAPS.includes(S.keymap) ? S.keymap : "cz-qwertz";
+    const lines = [];
+    const say = (text) => lines.push(text);
+    if (step.id === "boot") {
+      say("Instalační ISO Secure Boot neumí. Ve firmwaru přepni Secure Boot na Disabled a dej Save & Exit.");
+      say("V menu systemd-boot vyber první položku: Arch Linux install medium. Enter.");
+      say("Přihlášený účet je root, shell je zsh, heslo není.");
+    } else if (step.id === "keys") {
+      say("Konzole live ISO má americké rozložení. Fyzická klávesnice notebooku je česká QWERTZ, takže Z a Y jsou prohozené.");
+      say("Seznam map:\nlocalectl list-keymaps");
+      say("Pro tenhle stroj:\nloadkeys cz-qwertz");
+      say("Příkaz při úspěchu nic nevypíše. Platí jen do restartu. Natrvalo se zapíše později jako KEYMAP=" + km + " do /etc/vconsole.conf.");
+      if (S.keymap === "cz-qwerty") say("Teď máš cz-qwerty. To je české QWERTY. Nálepka říká QWERTZ, tedy cz-qwertz. Do vconsole.conf pak musí přijít přesně ta mapa, kterou necháš načtenou.");
+    } else if (step.id === "uefi") {
+      say("Ověř režim bootu. 64 znamená 64bitové UEFI a k němu patří tabulka GPT a EFI oddíl.");
+      say("cat /sys/firmware/efi/fw_platform_size");
+      say("Kdyby soubor neexistoval, stroj běží v BIOS/CSM. Tenhle notebook má vrátit 64.");
+    } else if (step.id === "net") {
+      say("Ethernet enp0s31f6 nemá kabel. Wi-Fi je wlan0, karta Intel AX201. V live ISO už běží iwd, na nainstalovaném systému sám od sebe nepoběží.");
+      say("SSID arch-home, heslo wiki4life. Je to na nálepce routeru.");
+      if (!S.wifi) {
+        say("iwctl\nstation wlan0 scan\nstation wlan0 get-networks\nstation wlan0 connect arch-home");
+        say("Na dotaz Passphrase: napiš wiki4life a pak exit.");
+      } else say("wlan0 už je na arch-home. Zbývá ověřit, že jde ven.");
+      if (!S.net) say("ping -c 3 ping.archlinux.org\n\nTři odpovědi a 0% ztráta znamenají, že síť stojí. Bez -c by ping běžel pořád, Ctrl+C ho utne. Tady stačí příkaz výše.");
+    } else if (step.id === "clock") {
+      say("Špatný čas rozbije ověření podpisů balíčků a TLS. V live ISO čas srovná systemd-timesyncd, jakmile je síť.");
+      say("timedatectl");
+      say("U hotového kroku musí být System clock synchronized: yes a NTP service: active. Když je synchronized: no, síť ještě nestojí.");
+    } else if (step.id === "disk") {
+      say("Disk notebooku je NVMe /dev/nvme0n1, 476.9 GiB, model ARCHBOOK-NVMe-512, zatím prázdný.");
+      say("lsblk\nfdisk -l");
+      say("Ignoruj loop0 a airootfs. /dev/sda je instalační flashka, tu nerozděluj a neformátuj. Z ní běží live systém.");
+    } else if (step.id === "parts") {
+      say("UEFI instalace chce tabulku GPT. fdisk na prázdném disku nejdřív založí DOS (MBR). Příkaz g ji přepíše na GPT. Bez g bys zapsal MBR a firmware z toho nebootuje.");
+      say("Příklad z instalační příručky: EFI System 1 GiB, Linux swap aspoň 4 GiB, zbytek Linux root (x86-64).");
+      say("fdisk /dev/nvme0n1\ng\nn → Enter → Enter → +1G\nt → 1\nn → Enter → Enter → +4G\nt → 2 → 19\nn → Enter → Enter → Enter\nt → 3 → 23\nw");
+      say("Typy v util-linux 2.39: 1 EFI System (alias uefi), 19 Linux swap (alias swap), 23 Linux root (x86-64). Nový oddíl je typ 20 Linux filesystem, ten na rootu taky bootuje, příručka ale chce 23. L uvnitř změny typu vypíše seznam.");
+      say("w tabulku zapíše. q odejde bez zápisu. Dokud není w, na disku nic není.");
+    } else if (step.id === "fs") {
+      say("Formátuj jen oddíly, které jsi právě vytvořil. EFI musí být FAT32. Root v příručce je ext4. Swap se neformátuje mkfs, ale mkswap.");
+      if (!efiDev) say("Chybí oddíl typu EFI System. Vrať se do fdisku.");
+      else if (S.fs[efi.num]?.kind === "vfat") say(efiDev + " už je FAT32.");
+      else say("EFI oddíl " + efiDev + ":\nmkfs.fat -F 32 " + efiDev);
+      if (swDev) {
+        if (S.fs[sw.num]?.kind === "swap") say(swDev + " už má swap hlavičku.");
+        else say("Swap " + swDev + ":\nmkswap " + swDev);
+      }
+      if (!rootDev) say("Chybí oddíl pro /. Typ 23, nebo velký typ 20.");
+      else if (S.fs[root.num] && ["ext4", "btrfs", "xfs"].includes(S.fs[root.num].kind)) say(rootDev + " už má souborový systém " + S.fs[root.num].kind + ". UUID=" + S.fs[root.num].uuid);
+      else say("Root " + rootDev + ":\nmkfs.ext4 " + rootDev);
+      say("Čísla výše jsou z tvojí tabulky, ne z obecného příkladu. Celý disk /dev/nvme0n1 ani flashku /dev/sda neformátuj.");
+    } else if (step.id === "mount") {
+      say("Nejdřív root na /mnt, teprve potom ESP na /mnt/boot. Kdybys ESP připojil dřív, /mnt/boot by byl jen adresář v live systému a po restartu zmizel.");
+      say("ESP na /boot je potřeba proto, aby systemd-boot na FAT32 viděl jádro i initrd. GRUB umí číst ext4 i odjinud, příručka pro systemd-boot počítá s /boot.");
+      if (rootDev) say("mount " + rootDev + " /mnt");
+      if (efiDev) say("mount --mkdir " + efiDev + " /mnt/boot");
+      if (swDev && !S.swaps.includes(sw.num)) say("swapon " + swDev + "\n\nBez swapon ho genfstab do fstab nezapíše.");
+      else if (swDev) say("Swap " + swDev + " už běží.");
+    } else if (step.id === "strap") {
+      say("Do nového systému se z live ISO nepřenese nic kromě /etc/pacman.d/mirrorlist. base nemá editor, sudo ani správce sítě.");
+      say("Přepínač -K v novém systému založí pacman keyring. Bez něj pozdější pacman v chrootu nemusí ověřit balíčky.");
+      say("CPU je Intel Core i5-1240P, takže mikrokód je intel-ucode, ne amd-ucode. Wi-Fi Intel AX201 potřebuje linux-firmware.");
+      say("pacstrap -K /mnt base linux linux-firmware intel-ucode networkmanager nano sudo");
+      say("base je meta balíček se systemd, takže bootctl v chrootu bude. linux nainstaluje /boot/vmlinuz-linux a initramfs. Když ESP není připojený na /mnt/boot, jádro skončí na ext4 a systemd-boot ho nenačte.");
+    } else if (step.id === "fstab") {
+      say("genfstab zapíše to, co je právě připojené, včetně swapu po swapon. -U použije UUID, takže se jméno /dev/nvme0n1 po přidání disku nesemele.");
+      say("genfstab -U /mnt >> /mnt/etc/fstab\ncat /mnt/etc/fstab");
+      say(">> přidává na konec. Podruhé stejný příkaz řádky zdvojí a boot pak může hlásit chybu. V souboru má být root jednou, /boot jednou a swap jednou.");
+      if (rootUuid) say("UUID rootu " + rootDev + " je " + rootUuid + ". Ve fstab musí být u přípojného bodu /.");
+    } else if (step.id === "chroot") {
+      say("arch-chroot tě přepne do nového systému, jako bys z něj už bootoval. Prompt se změní na bash.");
+      say("arch-chroot -S /mnt");
+      say("-S v chrootu nastartuje systemd. Bez něj bootctl a grub-install zapíšou soubory, ale UEFI proměnnou s položkou bootu ne. Wiki to u systemd-boot říká výslovně.");
+      say("V chrootu nefunguje timedatectl, hostnamectl ani localectl. Nemají dbus. Hostname se píše do souboru, časová zóna přes ln.");
+    } else if (step.id === "tz") {
+      say("Notebook je v Praze. Zóna je cesta do zoneinfo, ne jen město.");
+      say("ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime\nhwclock --systohc");
+      say("ln nastaví /etc/localtime. hwclock --systohc z něj udělá /etc/adjtime a předpokládá, že hardwarové hodiny jedou v UTC. V live ISO tenhle příkaz nespouštěj, přepsal by hodiny instalačního systému.");
+    } else if (step.id === "locale") {
+      say("V /etc/locale.gen je řádek s češtinou zakomentovaný. Odkomentuj přesně cs_CZ.UTF-8 UTF-8, ne ISO-8859-2.");
+      say("nano /etc/locale.gen");
+      say("Smaž # na začátku řádku #cs_CZ.UTF-8 UTF-8. Ctrl+O uloží, Ctrl+X zavře. Pak:");
+      say("locale-gen");
+      say("locale-gen vygeneruje jen odkomentované řádky. Když vypíše Generation complete a žádné locale, řádek zůstal zakomentovaný.");
+      say("printf 'LANG=cs_CZ.UTF-8\\n' > /etc/locale.conf\nprintf 'KEYMAP=" + km + "\\n' > /etc/vconsole.conf");
+      say("KEYMAP musí být stejná mapa jako u loadkeys. Teď je načtená " + (CZECH_MAPS.includes(S.keymap) ? S.keymap : "ještě US, nejdřív loadkeys cz-qwertz") + ".");
+    } else if (step.id === "host") {
+      say("Hostname: 1 až 63 znaků, jen a–z, 0–9 a pomlčka, nesmí začínat pomlčkou.");
+      say("printf 'archbook\\n' > /etc/hostname");
+      say("Balíček síť nespustí. systemctl enable založí symlink, aby služba naběhla při bootu. V chrootu --now službu na železe nespustí.");
+      say("pacman -S networkmanager\nsystemctl enable NetworkManager");
+      say("Druhá platná cesta je iwd plus DHCP. Samotné iwd adresu nedá:");
+      say("pacman -S iwd\nsystemctl enable iwd systemd-networkd systemd-resolved");
+      say("Nebo v /etc/iwd/main.conf pod [Network] řádek EnableNetworkConfiguration=true a systemctl enable iwd. Adresář musí existovat: mkdir -p /etc/iwd.");
+    } else if (step.id === "pass") {
+      say("Bez hesla roota se po restartu nepřihlásíš. passwd se ptá dvakrát a při úspěchu napíše password updated successfully.");
+      say("passwd");
+      say("Prázdné heslo se nevezme. Když se zápisy neshodují, heslo zůstane staré.");
+    } else if (step.id === "loader") {
+      say("ESP musí být na /boot a chroot musí být z arch-chroot -S. bootctl install zkopíruje EFI binárku a založí položku Linux Boot Manager.");
+      say("bootctl install");
+      say("Pak dva soubory. Cesty u linux a initrd jsou od kořene ESP, ne /boot/vmlinuz-linux.");
+      if (rootUuid) {
+        say("/boot/loader/loader.conf obsahuje:\ndefault  arch.conf\ntimeout  4");
+        say("/boot/loader/entries/arch.conf obsahuje:\ntitle   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=" + rootUuid + " rw");
+        say("UUID je souborový systém rootu " + rootDev + ", ne krátké UUID oddílu EFI. initrd mikrokódu je první.");
+        say("printf '%s\\n' 'default  arch.conf' 'timeout  4' > /boot/loader/loader.conf");
+        say("printf '%s\\n' 'title   Arch Linux' 'linux   /vmlinuz-linux' 'initrd  /intel-ucode.img' 'initrd  /initramfs-linux.img' 'options root=UUID=" + rootUuid + " rw' > /boot/loader/entries/arch.conf");
+      } else say("UUID rootu ještě není. Nejdřív mkfs.ext4 a blkid, options musí mít root=UUID=… rw.");
+      say("GRUB místo toho:\npacman -S grub efibootmgr\ngrub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB\ngrub-mkconfig -o /boot/grub/grub.cfg");
+      say("grub-mkconfig mikrokód najde sám, ale až když je intel-ucode nainstalovaný před tím příkazem.");
+    } else if (step.id === "micro") {
+      say("cpuinfo říká GenuineIntel, model i5-1240P. Balíček je intel-ucode. amd-ucode je pro AMD a tady nepatří.");
+      if (!has("intel-ucode")) say("pacman -S intel-ucode\n\nSoubor přistane v /boot/intel-ucode.img.");
+      else say("intel-ucode už v systému je, obraz je /boot/intel-ucode.img.");
+      say("U systemd-boot musí být v arch.conf tahle dvojice a mikrokód první:\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img");
+      if (rootUuid) say("Celé options nech root=UUID=" + rootUuid + " rw.");
+      say("Když používáš GRUB a balíček doinstaluješ až po grub-mkconfig, spusť grub-mkconfig -o /boot/grub/grub.cfg znovu. Jinak ho do konfigurace nedá.");
+    } else if (step.id === "reboot") {
+      say("Nejdřív odejdi z chrootu, pak restartuj celý stroj. reboot uvnitř chrootu restartuje taky, příručka ale chce nejdřív exit, ať vidíš, že nic nezůstalo zamčené.");
+      say("exit\nreboot");
+      say("Firmware má USB výš než NVMe. Necháš-li flashku v portu, nabootuješ znovu ISO, ne nový systém. Na další obrazovce ji vytáhni.");
+    } else if (step.id === "net2") {
+      say("Heslo z live ISO se do instalace nezkopírovalo. iwd ho mělo u sebe v RAM. Po bootu je potřeba síť zadat znovu, jinak pacman nenajde zrcadla.");
+      if (S.enabled.includes("NetworkManager") || has("networkmanager")) {
+        say("NetworkManager po enable při bootu běží. Připojení:");
+        say("nmcli device wifi connect arch-home password wiki4life");
+      }
+      if (S.enabled.includes("iwd")) {
+        say("iwd je zapnuté. Znovu:");
+        say("iwctl\nstation wlan0 connect arch-home");
+        say("Heslo je wiki4life. Adresu dostaneš jen když běží i systemd-networkd, nebo má iwd v /etc/iwd/main.conf EnableNetworkConfiguration=true.");
+      }
+      if (!has("networkmanager") && !has("iwd")) say("V systému není NetworkManager ani iwd. Vrať se do chrootu z ISO a jeden z nich nainstaluj a zapni systemctl enable.");
+    } else if (step.id === "user") {
+      say("Grafické sezení se nespouští jako root. Uživatel potřebuje domovský adresář (-m), skupinu wheel a heslo.");
+      say("useradd -m -G wheel -s /bin/bash jmeno\npasswd jmeno");
+      say("Jméno: malá písmena, čísla, pomlčka. Bez -m nevznikne /home/jmeno a .xinitrc nemá kam uložit.");
+      say("sudo není v base. Když chybí: pacman -S sudo");
+      say("visudo otevře /etc/sudoers. Odkomentuj přesně tenhle řádek, křížek smaž:\n%wheel ALL=(ALL:ALL) ALL");
+      say("Řádek NOPASSWD sudo pouští bez hesla. Visudo při chybné řádce změny zahodí, ať si sudo nerozbiješ. Pak se přepni: su - jmeno");
+    } else if (step.id === "wm") {
+      say("Jeden window manager, spuštěný jako uživatel z tty. GNOME a Plasma jsou desktopová prostředí, těmi hra nekončí. GPU je Intel Iris Xe, proprietární NVIDIA tu není, Sway i Hyprland na tom jedou.");
+      say("i3, X11. Balíček je i3-wm. Skupina i3 k němu přidá i3status a i3lock. Terminál musí existovat, výchozí klávesa ho hledá.\npacman -S xorg-server xorg-xinit i3-wm xterm dmenu\nsu - jmeno\nprintf 'exec i3\\n' > ~/.xinitrc\nstartx");
+      say("Sway, Wayland, náhrada i3. Výchozí terminál v /etc/sway/config je foot, spouštěč wmenu. Bez nich Super+Enter a Super+D nic neotevřou.\npacman -S sway foot wmenu\nsway");
+      say("Hyprland, Wayland. Bez polkit, nebo bez seatd.service a uživatele ve skupině seat, nenaběhne. Spouští se start-hyprland. Samotný příkaz Hyprland wiki už nedoporučuje.\npacman -S hyprland polkit\nstart-hyprland");
+      say("awesome, X11.\npacman -S xorg-server xorg-xinit awesome xterm\nprintf 'exec awesome\\n' > ~/.xinitrc\nstartx");
+      say("Openbox, X11. Spouští se openbox-session, ne jen openbox.\npacman -S xorg-server xorg-xinit openbox xterm\nprintf 'exec openbox-session\\n' > ~/.xinitrc\nstartx");
+      say("bspwm, X11. Bez sxhkd a spustitelného bspwmrc nemáš klávesy.\npacman -S xorg-server xorg-xinit bspwm sxhkd xterm\nmkdir -p ~/.config/bspwm ~/.config/sxhkd\ncp /usr/share/doc/bspwm/examples/bspwmrc ~/.config/bspwm/\ncp /usr/share/doc/bspwm/examples/sxhkdrc ~/.config/sxhkd/\nchmod +x ~/.config/bspwm/bspwmrc\nprintf 'exec bspwm\\n' > ~/.xinitrc\nstartx");
+      say("dwm, X11, v oficiálních repozitářích není. Staví se ze zdroje, konfigurace je v config.h před make. Výchozí terminál v config.h je st.\npacman -S xorg-server xorg-xinit base-devel git libx11 libxft libxinerama\ngit clone https://git.suckless.org/dwm\ncd dwm && make && sudo make install\ncd ~\ngit clone https://git.suckless.org/st\ncd st && make && sudo make install\nprintf 'exec dwm\\n' > ~/.xinitrc\nstartx");
+      say(".xinitrc musí ležet v domovském adresáři uživatele, který píše startx. Soubor v /root/.xinitrc se při startu uživatele nečte.");
+    }
+    return lines.join("\n\n");
+  }
+
   function render() {
     const cur = currentStep();
     const doneN = STEPS.filter((s) => s.done()).length;
@@ -660,7 +828,7 @@
     }
     $("brief-title").textContent = cur.title;
     $("brief-text").textContent = cur.goal;
-    $("brief-why").textContent = cur.why;
+    $("brief-guide").textContent = guideText(cur);
     $("brief-link").href = cur.wiki;
     const host = S.booted ? hostnameNow() || "archlinux" : "archiso";
     let shell = "zsh";
@@ -3262,6 +3430,13 @@
     hintCmd();
     render();
     save();
+  });
+
+  $("btn-steps").addEventListener("click", () => {
+    const layout = document.querySelector("#screen-install .layout");
+    const hidden = layout.classList.toggle("steps-hidden");
+    $("btn-steps").textContent = hidden ? "kroky" : "skrýt kroky";
+    $("btn-steps").setAttribute("aria-pressed", hidden ? "false" : "true");
   });
 
   $("btn-sound").addEventListener("click", () => {

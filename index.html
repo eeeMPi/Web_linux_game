@@ -49,6 +49,7 @@
       <div class="brand">INSTALUJ <span>ARCH</span></div>
       <div id="step-label" class="step-label">krok 1</div>
       <div class="top-right">
+        <button id="btn-steps" class="icon-btn" type="button" aria-pressed="true">skrýt kroky</button>
         <span id="purity" title="Každá nápověda ubere 8 bodů">čistota 100</span>
         <button id="btn-sound" class="icon-btn" type="button" title="Zvuk">zvuk vyp</button>
         <a class="wiki" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">ArchWiki</a>
@@ -71,14 +72,14 @@
             <input id="cmd" name="cmd" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Příkaz">
           </form>
         </div>
-        <p class="keys">Enter odešle · Tab doplní · ↑↓ historie · <kbd>hint</kbd> ukáže příkaz</p>
+        <p class="keys">Enter odešle · Tab doplní · ↑↓ historie</p>
       </main>
       <aside class="col brief-col">
         <article class="card">
           <h2 id="brief-title">Teď</h2>
           <p id="brief-text"></p>
-          <p id="brief-why" class="why"></p>
-          <a id="brief-link" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">otevřít wiki</a>
+          <pre id="brief-guide"></pre>
+          <a id="brief-link" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">wiki k tomuto kroku</a>
           <button id="btn-hint" class="btn tiny" type="button">Nápověda (−8 čistoty)</button>
         </article>
         <article class="card sticker">
