@@ -1,14 +1,15 @@
 :root {
-  --bg: #100e0c;
-  --ink: #efe6d6;
-  --dim: #a89880;
-  --line: #3a3126;
-  --green: #b6f27c;
-  --amber: #ffb454;
-  --red: #ff6b6b;
-  --cyan: #8fd4ff;
-  --panel: #1a1511;
-  --panel-2: #241c16;
+  --bg: #020403;
+  --ink: #c6f7c0;
+  --dim: #6d8f72;
+  --line: #1c3d28;
+  --green: #7dff6b;
+  --amber: #d6de6a;
+  --red: #ff5d6c;
+  --cyan: #9af0c8;
+  --panel: #060a07;
+  --panel-2: #0a100c;
+  --glow: 0 0 12px rgba(125, 255, 107, 0.18);
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --pixel: "Press Start 2P", monospace;
   --bios: "VT323", monospace;
@@ -26,6 +27,20 @@ html, body {
 
 body { min-height: 100vh; overflow: hidden; }
 
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.18) 0 1px,
+    transparent 1px 3px
+  );
+  opacity: 0.45;
+}
+
 button, input, textarea { font: inherit; color: inherit; }
 
 .hidden { display: none !important; }
@@ -42,7 +57,7 @@ button, input, textarea { font: inherit; color: inherit; }
   gap: 10px;
   padding: 16px 16px 28px;
   background:
-    radial-gradient(900px 400px at 50% 20%, #2a241c 0%, transparent 60%),
+    radial-gradient(900px 420px at 50% 0%, #0c1a10 0%, transparent 55%),
     var(--bg);
 }
 
@@ -50,9 +65,9 @@ canvas {
   width: min(960px, 100%);
   height: auto;
   image-rendering: pixelated;
-  background: #14110e;
-  border: 4px solid #2a241c;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  background: #000;
+  border: 1px solid var(--line);
+  box-shadow: var(--glow), 0 20px 60px rgba(0, 0, 0, 0.65);
 }
 
 .win canvas { width: min(640px, 100%); }
@@ -73,6 +88,8 @@ h1 {
   font-size: clamp(18px, 3vw, 28px);
   line-height: 1.5;
   font-weight: 400;
+  color: var(--green);
+  text-shadow: var(--glow);
 }
 
 .lead { margin: 0 0 16px; color: var(--dim); line-height: 1.5; }
@@ -80,38 +97,45 @@ h1 {
 .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 .btn {
-  border: 1px solid var(--line);
-  background: var(--panel-2);
+  border: 1px solid var(--green);
+  background: transparent;
+  color: var(--green);
   padding: 10px 14px;
   cursor: pointer;
+  text-shadow: var(--glow);
 }
 
-.btn.primary { background: #2d2416; border-color: var(--amber); color: var(--amber); }
+.btn.primary { background: #07140c; }
 .btn.tiny { padding: 7px 10px; font-size: 13px; }
 .btn:hover, .icon-btn:hover { filter: brightness(1.15); }
 
 .bios {
   min-height: 100vh;
   padding: 48px 24px;
-  background: #061018;
-  color: #c6e2ff;
+  background: #000;
+  color: var(--green);
   font-family: var(--bios);
   font-size: 28px;
+  text-shadow: var(--glow);
 }
 
-.bootmenu { background: #050505; color: #f2f2f2; }
+.bootmenu { background: #000; color: var(--green); }
 
-.bios-title { margin: 0; font-size: 36px; }
-.bios-sub, .bios-help { color: #7f97ab; margin: 4px 0 18px; }
-.bootmenu .bios-sub, .bootmenu .bios-help { color: #9a9a9a; }
+.bios-title { margin: 0; font-size: 36px; color: var(--green); }
+.bios-sub, .bios-help { color: var(--dim); margin: 4px 0 18px; text-shadow: none; }
+.bootmenu .bios-sub, .bootmenu .bios-help { color: var(--dim); }
 
 .bios-list { list-style: none; padding: 0; margin: 0; max-width: 720px; }
 .bios-list li {
   padding: 4px 10px;
   cursor: pointer;
 }
-.bios-list li.active { background: #d7ecff; color: #061018; }
-.bootmenu .bios-list li.active { background: #f2f2f2; color: #111; }
+.bios-list li.active,
+.bootmenu .bios-list li.active {
+  background: var(--green);
+  color: #021204;
+  text-shadow: none;
+}
 
 .top {
   display: flex;
@@ -119,7 +143,7 @@ h1 {
   gap: 16px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
-  background: #16120e;
+  background: #000;
 }
 
 .brand {
@@ -161,13 +185,13 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
 #steps { list-style: none; padding: 0; margin: 0; }
 #steps li {
   padding: 5px 0;
-  border-bottom: 1px solid #2a241c;
+  border-bottom: 1px solid #102016;
   color: var(--dim);
   font-size: 13px;
 }
-#steps li.on { color: var(--ink); }
+#steps li.on { color: var(--green); }
 #steps li.done { color: var(--green); }
-#steps li .n { display: inline-block; width: 1.6em; color: #6d6256; }
+#steps li .n { display: inline-block; width: 1.6em; color: #3d5c44; }
 
 .term-col {
   display: flex;
@@ -192,8 +216,9 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
 .terminal {
   flex: 1;
   min-height: 240px;
-  background: #0a0d0a;
-  border: 1px solid #243024;
+  background: #000;
+  border: 1px solid var(--green);
+  box-shadow: var(--glow), inset 0 0 40px rgba(125, 255, 107, 0.04);
   padding: 10px 12px;
   overflow: auto;
   display: flex;
@@ -203,9 +228,9 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
 #output { white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
 .line.err { color: var(--red); }
 .line.ok { color: var(--green); }
-.line.dim { color: #7d8a78; }
+.line.dim { color: #4e6b54; }
 .line.note { color: var(--amber); }
-.line.cmd { color: #d5ffe0; }
+.line.cmd { color: #e7ffe4; }
 
 #form {
   display: flex;
@@ -222,7 +247,7 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
   caret-color: var(--green);
 }
 
-.keys { margin: 0; color: #6d6256; font-size: 12px; }
+.keys { margin: 0; color: #3d5c44; font-size: 12px; }
 
 .card {
   background: var(--panel-2);
@@ -259,8 +284,9 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
 
 .editor, .wm-box {
   width: min(860px, 100%);
-  background: #14110e;
-  border: 1px solid var(--line);
+  background: #000;
+  border: 1px solid var(--green);
+  box-shadow: var(--glow);
 }
 
 .wm-box { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 12px; padding: 12px; }
@@ -269,19 +295,21 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  background: #2a2418;
-  color: var(--amber);
+  background: #07140c;
+  color: var(--green);
   font-size: 13px;
 }
-.editor-bar.bottom { background: #1c1814; }
+.editor-bar.bottom { background: #000; }
 #editor-text {
   width: 100%;
   height: min(52vh, 420px);
-  background: #0c0f0c;
+  background: #000;
+  color: var(--ink);
   border: 0;
   padding: 10px;
   resize: vertical;
   line-height: 1.45;
+  caret-color: var(--green);
 }
 
 #win-notes { text-align: left; color: var(--dim); line-height: 1.5; }
