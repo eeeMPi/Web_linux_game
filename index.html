@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INSTALUJ ARCH</title>
+  <meta name="description" content="Hra: nainstaluj Arch Linux podle ArchWiki a spusť window manager.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect fill='%23140f0c' width='64' height='64'/><rect x='8' y='18' width='28' height='14' fill='%23d7d1c7'/><rect x='8' y='18' width='8' height='14' fill='%23b8c0c8'/><rect x='14' y='22' width='16' height='6' fill='%231796ff'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section id="screen-intro" class="screen">
+    <div class="scene">
+      <div class="scene-copy">
+        <p class="eyebrow">Arch Linux · ISO 2026.09.01</p>
+        <h1>INSTALUJ ARCH</h1>
+        <p id="intro-status" class="lead">Flashka s Arch ISO je v portu. Ve firmwaru bude USB první v pořadí bootu.</p>
+        <div class="row">
+          <button id="btn-power" class="btn primary" type="button">Zapnout notebook</button>
+          <button id="btn-continue" class="btn" type="button" hidden>Pokračovat v instalaci</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-firmware" class="screen hidden" aria-label="Firmware">
+    <div class="bios">
+      <p class="bios-title">ARCHBOOK Setup · UEFI</p>
+      <p class="bios-sub">Šipky vybírají · Enter potvrdí</p>
+      <ul id="fw-list" class="bios-list"></ul>
+      <p id="fw-help" class="bios-help"></p>
+    </div>
+  </section>
+
+  <section id="screen-menu" class="screen hidden" aria-label="Boot menu">
+    <div class="bios bootmenu">
+      <p class="bios-title">Arch Linux</p>
+      <p class="bios-sub">archiso · systemd-boot</p>
+      <ul id="boot-list" class="bios-list"></ul>
+      <p class="bios-help">Enter spustí vybranou položku</p>
+    </div>
+  </section>
+
+  <section id="screen-install" class="screen hidden">
+    <header class="top">
+      <div class="brand">INSTALUJ <span>ARCH</span></div>
+      <div id="step-label" class="step-label">krok 1</div>
+      <div class="top-right">
+        <span id="purity" title="Každá nápověda ubere 8 bodů">čistota 100</span>
+        <button id="btn-sound" class="icon-btn" type="button" title="Zvuk">zvuk vyp</button>
+        <a class="wiki" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">ArchWiki</a>
+      </div>
+    </header>
+    <div class="layout">
+      <aside class="col steps-col">
+        <h2>Postup</h2>
+        <ol id="steps"></ol>
+      </aside>
+      <main class="col term-col">
+        <div class="term-bar">
+          <span id="term-title">root@archiso — zsh</span>
+          <span id="env-pill">live</span>
+        </div>
+        <div id="terminal" class="terminal" tabindex="0">
+          <div id="output"></div>
+          <form id="form" autocomplete="off">
+            <label id="prompt" for="cmd">root@archiso ~ #</label>
+            <input id="cmd" name="cmd" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Příkaz">
+          </form>
+        </div>
+        <p class="keys">Enter odešle · Tab doplní · ↑↓ historie · <kbd>hint</kbd> ukáže příkaz</p>
+      </main>
+      <aside class="col brief-col">
+        <article class="card">
+          <h2 id="brief-title">Teď</h2>
+          <p id="brief-text"></p>
+          <p id="brief-why" class="why"></p>
+          <a id="brief-link" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">otevřít wiki</a>
+          <button id="btn-hint" class="btn tiny" type="button">Nápověda (−8 čistoty)</button>
+        </article>
+        <article class="card sticker">
+          <h2>Nálepky na stole</h2>
+          <ul>
+            <li>CPU <b>Intel Core i5-1240P</b></li>
+            <li>GPU <b>Intel Iris Xe</b></li>
+            <li>Wi-Fi <b>Intel AX201</b> · <b>wlan0</b></li>
+            <li>Disk <b>/dev/nvme0n1</b> 476.9 GiB</li>
+            <li>Flashka <b>/dev/sda</b> Arch ISO</li>
+            <li>Klávesnice <b>CZ QWERTZ</b></li>
+          </ul>
+          <div class="router">
+            <span>router</span>
+            <b>SSID arch-home</b>
+            <b>heslo wiki4life</b>
+          </div>
+        </article>
+      </aside>
+    </div>
+  </section>
+
+  <section id="screen-eject" class="screen hidden" aria-label="Vyjmutí flashky">
+    <div class="scene">
+      <canvas id="pix-eject" width="480" height="270" aria-hidden="true"></canvas>
+      <div class="scene-copy">
+        <p class="eyebrow">reboot</p>
+        <h1>VYTAHNI FLASHKU</h1>
+        <p class="lead">Firmware má USB výš než disk. Necháš-li ISO v portu, nabootuješ znovu live systém, ne nový Arch.</p>
+        <div class="row">
+          <button id="btn-eject" class="btn primary" type="button">Vytáhnout a bootovat disk</button>
+          <button id="btn-keep" class="btn" type="button">Nechat flashku v portu</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-win" class="screen hidden" aria-label="Hotovo">
+    <div class="win">
+      <canvas id="pix-win" width="480" height="270" aria-hidden="true"></canvas>
+      <div class="win-copy">
+        <p class="eyebrow">graphical session</p>
+        <h1 id="win-title">WM běží</h1>
+        <p id="win-stats" class="lead"></p>
+        <ul id="win-notes"></ul>
+        <div class="row">
+          <button id="btn-again" class="btn primary" type="button">Instalovat znovu</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="wm-float" class="overlay hidden">
+    <div class="wm-box">
+      <canvas id="pix-wm" width="480" height="270" aria-hidden="true"></canvas>
+      <div>
+        <h2 id="wm-float-title">Sezení běží</h2>
+        <p id="wm-float-text"></p>
+        <button id="btn-wm-back" class="btn" type="button">Ukončit WM a vrátit se do tty</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editor" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+    <div class="editor">
+      <div class="editor-bar"><span id="editor-title">nano</span><span>Ctrl+O uložit · Ctrl+X zavřít</span></div>
+      <textarea id="editor-text" spellcheck="false" aria-label="Obsah souboru"></textarea>
+      <div class="editor-bar bottom">
+        <button id="editor-save" class="btn tiny" type="button">Uložit</button>
+        <button id="editor-close" class="btn tiny" type="button">Zavřít</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
