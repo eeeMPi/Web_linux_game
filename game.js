@@ -63,6 +63,20 @@
     xorg: ["xorg-server", "xorg-xinit"],
     "base-devel": ["base-devel", "gcc", "make", "binutils"],
   };
+  const COMMAND_REFERENCE = [
+    ["help", "ukáže, co čeká aktuální krok"],
+    ["hint", "vysvětlí aktuální krok podrobněji"],
+    ["man PŘÍKAZ", "stručný manuál, například man mount"],
+    ["lsblk", "zobrazí disky a jejich oddíly"],
+    ["fdisk /dev/nvme0n1", "vytvoří oddíly na disku"],
+    ["mkfs.ext4 /dev/...", "naformátuje root oddíl"],
+    ["mount /dev/... /mnt", "připojí oddíl do složky"],
+    ["pacstrap -K /mnt ...", "nainstaluje základ systému"],
+    ["arch-chroot -S /mnt", "vstoupí do nainstalovaného systému"],
+    ["pacman -S balíček", "instaluje balíčky v novém systému"],
+    ["systemctl enable služba", "zapne službu po restartu"],
+    ["reboot", "restartuje počítač"],
+  ];
   const KNOWN = new Set([
     "base", "linux", "linux-lts", "linux-firmware", "intel-ucode", "amd-ucode",
     "iwd", "networkmanager", "nano", "vim", "sudo", "man-db", "man-pages", "texinfo",
@@ -168,6 +182,7 @@
   let S = fresh();
   let busy = false;
   let editor = null;
+  let beginner = localStorage.getItem("arch-beginner") !== "0";
 
   const screens = ["intro", "firmware", "menu", "install", "eject", "win"];
   function show(name) {
@@ -442,6 +457,8 @@
       title: "Boot média",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Boot_the_live_environment",
       goal: "Vypni Secure Boot a spusť Arch Linux install medium.",
+      how: "Šipkami vyber Secure Boot, Enter ho vypne. Pak Save & Exit. V dalším menu první položku (install medium).",
+      try: ["(tady se ještě nepíše — použij šipky a Enter)"],
       why: "Oficiální ISO Secure Boot neumí. Pro UEFI používá systemd-boot, pro BIOS syslinux. Po startu jsi root v Zsh, bez hesla.",
       hint: "Ve firmwaru dej Secure Boot na Disabled, Save & Exit, v menu první položku.",
       done: () => S.bootedIso,
@@ -451,6 +468,8 @@
       title: "Klávesnice",
       wiki: "https://wiki.archlinux.org/title/Linux_console/Keyboard_configuration#Loadkeys",
       goal: "Načti české rozložení. Nálepka na notebooku říká QWERTZ.",
+      how: "Live ISO má americkou klávesnici. Napiš příkaz níže a zmáčkni Enter. Nic jiného teď není potřeba.",
+      try: ["loadkeys cz-qwertz"],
       why: "Výchozí keymap live ISO je US. Seznam je localectl list-keymaps, nastavení loadkeys.",
       hint: "loadkeys cz-qwertz",
       done: () => CZECH_MAPS.includes(S.keymap),
@@ -460,6 +479,8 @@
       title: "Režim UEFI",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Verify_the_boot_mode",
       goal: "Ověř, že stroj nabootoval v UEFI, ne v BIOS/CSM.",
+      how: "Příkaz má vypsat číslo 64. Tím potvrdíš, že běžíš v 64bit UEFI.",
+      try: ["cat /sys/firmware/efi/fw_platform_size"],
       why: "Když soubor fw_platform_size nejde otevřít, běžíš v BIOS módu. 64 znamená 64bit UEFI.",
       hint: "cat /sys/firmware/efi/fw_platform_size",
       done: () => S.efiSeen,
@@ -469,8 +490,10 @@
       title: "Síť v live ISO",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Connect_to_the_internet",
       goal: "Připoj Wi-Fi. Ethernet kabel tu není. Ověř spojení pingem.",
+      how: "Nejdřív spusť iwctl — prompt se změní. Pak skenuj, připoj SSID arch-home a zadej heslo z nálepky routeru (wiki4life). Až to projde, napiš exit a ověř pingem.",
+      try: ["iwctl", "station wlan0 scan", "station wlan0 get-networks", "station wlan0 connect arch-home", "exit", "ping -c 3 ping.archlinux.org"],
       why: "V ISO jsou iwd, systemd-networkd a systemd-resolved zapnuté. Na nainstalovaném systému to tak samo nebude. SSID a heslo jsou na routeru.",
-      hint: "iwctl\nstation wlan0 scan\nstation wlan0 get-networks\nstation wlan0 connect arch-home\nheslo z nálepky\nexit\nping -c 3 ping.archlinux.org",
+      hint: "iwctl\nstation wlan0 scan\nstation wlan0 get-networks\nstation wlan0 connect arch-home\nheslo z nálepky: wiki4life\nexit\nping -c 3 ping.archlinux.org",
       done: () => S.net,
     },
     {
@@ -478,6 +501,8 @@
       title: "Hodiny",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Update_the_system_clock",
       goal: "Ověř, že jsou hodiny sesynchronizované.",
+      how: "Stačí se podívat na výstup. Hledej, že NTP je aktivní. Nic nenastavuj.",
+      try: ["timedatectl"],
       why: "Špatný čas rozbije podpisy balíčků a TLS. V live ISO to dělá systemd-timesyncd, jakmile je síť.",
       hint: "timedatectl",
       done: () => S.clockSeen,
@@ -487,7 +512,9 @@
       title: "Najít disk",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Partition_the_disks",
       goal: "Najdi disk notebooku. Ignoruj loop, airootfs a instalační flashku.",
-      why: "NVMe se jmenuje nvme0n1, flashka sdb/sda. Oddíly rpmb, boot0 a rom se nepoužívají.",
+      how: "Hledej nvme0n1 — to je disk notebooku. sda je flashka, tu nech být.",
+      try: ["lsblk", "fdisk -l"],
+      why: "NVMe se jmenuje nvme0n1, flashka sda. Oddíly rpmb, boot0 a rom se nepoužívají.",
       hint: "lsblk\nfdisk -l",
       done: () => S.diskSeen,
     },
@@ -496,6 +523,8 @@
       title: "Oddíly GPT",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Partition_the_disks",
       goal: "Založ GPT: EFI System, volitelně swap, a Linux root (x86-64) na zbytek disku.",
+      how: "Spusť fdisk. Prázdný disk je DOS, takže první vnitřní příkaz je g (GPT). Pak třikrát n: první oddíl +1G (EFI), druhý +4G (swap), třetí zbytek (root — velikost nech prázdnou, jen Enter). Typy měň přes t: 1 = EFI System, 19 = Linux swap, 23 = Linux root x86-64. Nakonec w.",
+      try: ["fdisk /dev/nvme0n1", "g", "n", "+1G", "t", "1", "n", "+4G", "t", "19", "n", "t", "23", "w"],
       why: "UEFI chce EFI System Partition. Wiki příklad má 1 GiB ESP, aspoň 4 GiB swap a zbytek pro /.",
       hint: "fdisk /dev/nvme0n1\ng\nn, Enter, Enter, +1G\nt, pak 1 (EFI System)\nn, Enter, Enter, +4G\nt, číslo oddílu, 19 (Linux swap)\nn, Enter, Enter, Enter\nt, číslo oddílu, 23 (Linux root x86-64)\nw\nPrázdný disk fdisk otevře jako DOS. Bez g bys psal MBR.",
       done: () => S.label === "gpt" && layoutReport().errors.length === 0,
@@ -505,8 +534,20 @@
       title: "Formát",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Format_the_partitions",
       goal: "ESP naformátuj na FAT32, root na ext4, swap inicializuj mkswap.",
+      how: "Pořadí: FAT32 na EFI, mkswap na swap, ext4 na root. Čísla oddílů ber z lsblk, kdyby neseděla p1/p2/p3.",
+      try: () => {
+        const e = efiPart();
+        const s = swapPart();
+        const r = rootPart();
+        const lines = [];
+        lines.push("mkfs.fat -F 32 " + (e ? devOf(e.num) : "/dev/nvme0n1p1"));
+        if (s) lines.push("mkswap " + devOf(s.num));
+        else lines.push("mkswap /dev/nvme0n1p2");
+        lines.push("mkfs.ext4 " + (r ? devOf(r.num) : "/dev/nvme0n1p3"));
+        return lines;
+      },
       why: "ESP se smí formátovat jen když jsi ho právě založil. FAT32 je mkfs.fat -F 32. Příkaz wiki pro root je mkfs.ext4.",
-      hint: "mkfs.fat -F 32 /dev/nvme0n1p1\nmkswap /dev/nvme0n1p2\nmkfs.ext4 /dev/nvme0n1p3\nČísla oddílů si ověř v lsblk. Nemusí sedět, když jsi je čísloval jinak.",
+      hint: "mkfs.fat -F 32 /dev/nvme0n1p1\nmkswap /dev/nvme0n1p2\nmkfs.ext4 /dev/nvme0n1p3\nČísla oddílů si ověř v lsblk.",
       done: () => fsReady(),
     },
     {
@@ -514,6 +555,16 @@
       title: "Připojení",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Mount_the_file_systems",
       goal: "Root připoj na /mnt, ESP na /mnt/boot, swap zapni swapon.",
+      how: "Nejdřív root na /mnt, potom EFI na /mnt/boot (složku založí --mkdir), nakonec swapon. Bez tohoto pořadí to nesedí.",
+      try: () => {
+        const e = efiPart();
+        const s = swapPart();
+        const r = rootPart();
+        const lines = ["mount " + (r ? devOf(r.num) : "/dev/nvme0n1p3") + " /mnt"];
+        lines.push("mount --mkdir " + (e ? devOf(e.num) : "/dev/nvme0n1p1") + " /mnt/boot");
+        if (s) lines.push("swapon " + devOf(s.num));
+        return lines;
+      },
       why: "Wiki příklad dává ESP na /boot, aby systemd-boot viděl jádro. mount --mkdir složku založí. Pořadí je root, potom ESP.",
       hint: "mount /dev/nvme0n1p3 /mnt\nmount --mkdir /dev/nvme0n1p1 /mnt/boot\nswapon /dev/nvme0n1p2",
       done: () => {
@@ -527,6 +578,8 @@
       title: "pacstrap",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Install_essential_packages",
       goal: "Nainstaluj base, jádro a linux-firmware. Z live systému se kromě mirrorlistu nic nepřenese.",
+      how: "Jeden dlouhý příkaz. -K založí keyring. intel-ucode, networkmanager, nano a sudo si ušetříš práci později.",
+      try: ["pacstrap -K /mnt base linux linux-firmware intel-ucode networkmanager nano sudo"],
       why: "Meta balíček base nemá nano, sudo ani síťový správce. -K inicializuje keyring v novém systému. CPU je Intel, firmware Wi-Fi je v linux-firmware.",
       hint: "pacstrap -K /mnt base linux linux-firmware intel-ucode networkmanager nano sudo",
       done: () => has("base") && !!S.kernel && has("linux-firmware"),
@@ -536,6 +589,8 @@
       title: "fstab",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Fstab",
       goal: "Vygeneruj fstab s UUID a zkontroluj ho.",
+      how: "Dvě většítka >> soubor připíšou, jedno by ho přepsalo. Spusť genfstab jednou a podívej se catem, že tam jsou UUID.",
+      try: ["genfstab -U /mnt >> /mnt/etc/fstab", "cat /mnt/etc/fstab"],
       why: "genfstab zapíše připojené systémy a swap. Dvakrát spuštěný příkaz řádky zdvojí.",
       hint: "genfstab -U /mnt >> /mnt/etc/fstab\ncat /mnt/etc/fstab",
       done: () => fstabOk(),
@@ -545,6 +600,8 @@
       title: "arch-chroot",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Chroot",
       goal: "Vstup do nového systému přes arch-chroot -S.",
+      how: "Přepneš se „dovnitř“ nainstalovaného systému. Přepínač -S je nutný, bez něj později selže bootctl.",
+      try: ["arch-chroot -S /mnt"],
       why: "Bez -S jede chroot v pid namespace a bootctl nezapíše UEFI proměnné. hostnamectl, localectl a timedatectl v chrootu nemají dbus.",
       hint: "arch-chroot -S /mnt",
       done: () => S.sawS,
@@ -554,6 +611,8 @@
       title: "Časová zóna",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Time",
       goal: "Nastav zónu Europe/Prague a zapiš hwclock.",
+      how: "První příkaz udělá odkaz na pražskou zónu, druhý zapíše čas do hardwarových hodin.",
+      try: ["ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime", "hwclock --systohc"],
       why: "ln ukazuje /etc/localtime na zoneinfo. hwclock --systohc založí /etc/adjtime a čeká RTC v UTC.",
       hint: "ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime\nhwclock --systohc",
       done: () => S.tz === "Europe/Prague" && S.hwclock,
@@ -563,6 +622,8 @@
       title: "Lokalizace",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Localization",
       goal: "Odkomentuj cs_CZ.UTF-8, spusť locale-gen a zapiš locale.conf i vconsole.conf.",
+      how: "Otevři nano, u řádku cs_CZ.UTF-8 UTF-8 smaž # na začátku. Ulož Ctrl+O, zavři Ctrl+X. Pak locale-gen a dva printf příkazy. KEYMAP musí být stejné jako u loadkeys.",
+      try: ["nano /etc/locale.gen", "locale-gen", "printf 'LANG=cs_CZ.UTF-8\\n' > /etc/locale.conf", "printf 'KEYMAP=cz-qwertz\\n' > /etc/vconsole.conf"],
       why: "LANG bez vygenerovaného locale neplatí. KEYMAP v vconsole.conf udrží loadkeys i po restartu.",
       hint: "nano /etc/locale.gen\nlocale-gen\nprintf 'LANG=cs_CZ.UTF-8\\n' > /etc/locale.conf\nprintf 'KEYMAP=cz-qwertz\\n' > /etc/vconsole.conf\nKEYMAP musí sedět s tím, co jsi dal do loadkeys.",
       done: () => S.generated.includes("cs_CZ.UTF-8") && langNow() === "cs_CZ.UTF-8" && keymapFile() === S.keymap && CZECH_MAPS.includes(S.keymap),
@@ -572,6 +633,8 @@
       title: "Hostname a síť",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Network_configuration",
       goal: "Dej stroji hostname a zapni síťovou službu, která po bootu opravdu poběží.",
+      how: "Nejdřív jméno počítače, pak NetworkManager (když už je z pacstrap, druhý příkaz jen řekne, že je nainstalovaný) a enable, ať se spustí po restartu.",
+      try: ["printf 'archbook\\n' > /etc/hostname", "pacman -S networkmanager", "systemctl enable NetworkManager"],
       why: "hostname je 1–63 znaků, malá písmena, čísla a pomlčka. NetworkManager, nebo iwd spolu se systemd-networkd. Samotný balíček se po startu nezapne.",
       hint: "printf 'archbook\\n' > /etc/hostname\npacman -S networkmanager\nsystemctl enable NetworkManager",
       done: () => hostnameOk(hostnameNow()) && netStackReady(),
@@ -581,6 +644,8 @@
       title: "Heslo roota",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Root_password",
       goal: "Nastav heslo roota.",
+      how: "Příkaz se dvakrát zeptá. Zvol si libovolné heslo a zapamatuj si ho — po restartu ho budeš potřebovat.",
+      try: ["passwd"],
       why: "Bez něj se do nového systému nepřihlásíš. passwd se ptá dvakrát.",
       hint: "passwd",
       done: () => !!S.rootPass,
@@ -590,6 +655,8 @@
       title: "Zavaděč",
       wiki: "https://wiki.archlinux.org/title/Systemd-boot",
       goal: "Nainstaluj systemd-boot nebo GRUB a udělej položku, která najde jádro.",
+      how: "Nejjednodušší je systemd-boot. Nejdřív bootctl install, pak loader.conf, pak arch.conf. UUID rootu vezmi z blkid (doplní se do příkazu vpravo, až bude oddíl naformátovaný). Když máš intel-ucode, musí být jeho initrd první.",
+      try: () => loaderTry(),
       why: "systemd-boot chce ESP na /boot a ruční soubor v /boot/loader/entries. Jádro i initrd jsou cesty od kořene ESP. GRUB je druhá platná volba.",
       hint: "bootctl install\nprintf '%s\\n' 'default arch.conf' 'timeout 4' > /boot/loader/loader.conf\nPoložku arch.conf slož podle blkid. linux /vmlinuz-linux, options root=UUID=… rw.\nKdyž je intel-ucode, první initrd je /intel-ucode.img a až potom /initramfs-linux.img.\nGRUB: pacman -S grub efibootmgr\ngrub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB\ngrub-mkconfig -o /boot/grub/grub.cfg",
       done: () => loaderReady(),
@@ -599,6 +666,8 @@
       title: "Mikrokód",
       wiki: "https://wiki.archlinux.org/title/Microcode",
       goal: "Nainstaluj intel-ucode a dej ho do zavaděče před hlavní initrd.",
+      how: "Když jsi intel-ucode dal už do pacstrap a do arch.conf, tenhle krok se splní sám. Jinak ho doinstaluj a v nano uprav arch.conf — řádek initrd /intel-ucode.img musí být nad initramfs.",
+      try: () => microTry(),
       why: "cpuinfo říká GenuineIntel. amd-ucode je pro AMD. U systemd-boot musí být initrd mikrokódu první. GRUB ho vezme, když grub-mkconfig běží až po instalaci balíčku.",
       hint: "pacman -S intel-ucode\nV arch.conf:\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\nU GRUB znovu grub-mkconfig -o /boot/grub/grub.cfg",
       done: () => microReady(),
@@ -608,6 +677,8 @@
       title: "Restart",
       wiki: "https://wiki.archlinux.org/title/Installation_guide#Reboot",
       goal: "Odejdi z chrootu, restartuj a vytáhni flashku.",
+      how: "Nejdřív exit (vyskočíš z chrootu), pak reboot. Na další obrazovce flashku vytáhni, jinak nabootuje znovu ISO.",
+      try: ["exit", "reboot"],
       why: "USB je ve firmwaru výš než disk. Necháš-li ISO v portu, nabootuješ znovu archiso. exit ukončí chroot, reboot restartuje stroj.",
       hint: "exit\nreboot",
       done: () => S.booted,
@@ -617,6 +688,8 @@
       title: "Síť po restartu",
       wiki: "https://wiki.archlinux.org/title/NetworkManager",
       goal: "Znovu se připoj k arch-home. Profily z live ISO se do nového systému nekopírují.",
+      how: "Přihlas se jako root heslem, které jsi nastavil. Pak jeden nmcli příkaz — heslo Wi-Fi je wiki4life.",
+      try: ["nmcli device wifi connect arch-home password wiki4life"],
       why: "iwd v ISO uložil heslo k sobě, ne do instalace. Po bootu musí síťový správce běžet a síť se zadá znovu.",
       hint: "nmcli device wifi connect arch-home password wiki4life\nKdyž máš iwd: iwctl a station wlan0 connect arch-home",
       done: () => S.booted && S.systemOnline,
@@ -626,6 +699,8 @@
       title: "Uživatel a sudo",
       wiki: "https://wiki.archlinux.org/title/Users_and_groups#User_management",
       goal: "Založ uživatele s home a skupinou wheel, dej mu heslo a povol sudo.",
+      how: "useradd založí účet (jméno si zvol). passwd mu dá heslo. visudo otevře sudoers — smaž # na začátku řádku %wheel ALL=(ALL:ALL) ALL, ulož, zavři. Window manager nepůjde spustit jako root.",
+      try: ["useradd -m -G wheel -s /bin/bash jakub", "passwd jakub", "visudo"],
       why: "Window manager se nespouští jako root. Skupina wheel smí sudo, jen když ve visudo odkomentuješ příslušný řádek.",
       hint: "useradd -m -G wheel -s /bin/bash tvojejmeno\npasswd tvojejmeno\nvisudo\nodkomentuj: %wheel ALL=(ALL:ALL) ALL",
       done: () => userReady(),
@@ -635,11 +710,104 @@
       title: "Window manager",
       wiki: "https://wiki.archlinux.org/title/Window_manager",
       goal: "Nainstaluj jeden window manager a spusť ho jako uživatel.",
+      how: "Nejjednodušší cesta je i3. Balíčky nainstaluj jako root (sudo pacman …). Pak se odhlas (exit), přihlas jako uživatel, zapiš ~/.xinitrc a spusť startx.",
+      try: ["sudo pacman -S xorg-server xorg-xinit i3-wm xterm dmenu", "printf 'exec i3\\n' > ~/.xinitrc", "startx"],
       why: "i3, awesome, Openbox, bspwm a dwm jedou na X11. Sway a Hyprland jsou Wayland. dwm není v oficiálních repozitářích. GNOME a Plasma jsou desktopová prostředí, ne cíl téhle hry.",
       hint: "i3: pacman -S xorg-server xorg-xinit i3-wm xterm dmenu\njako uživatel: printf 'exec i3\\n' > ~/.xinitrc && startx\n\nSway: pacman -S sway foot wmenu && sway\n\nHyprland: pacman -S hyprland polkit && start-hyprland\n\nawesome: pacman -S xorg-server xorg-xinit awesome xterm\nprintf 'exec awesome\\n' > ~/.xinitrc && startx\n\nOpenbox: pacman -S xorg-server xorg-xinit openbox xterm\nprintf 'exec openbox-session\\n' > ~/.xinitrc && startx\n\nbspwm: pacman -S xorg-server xorg-xinit bspwm sxhkd xterm\nmkdir -p ~/.config/bspwm ~/.config/sxhkd\ncp /usr/share/doc/bspwm/examples/bspwmrc ~/.config/bspwm/\ncp /usr/share/doc/bspwm/examples/sxhkdrc ~/.config/sxhkd/\nchmod +x ~/.config/bspwm/bspwmrc\nprintf 'exec bspwm\\n' > ~/.xinitrc && startx\n\ndwm: pacman -S xorg-server xorg-xinit base-devel git libx11 libxft libxinerama\ngit clone https://git.suckless.org/dwm\ncd dwm && make && sudo make install\ngit clone https://git.suckless.org/st\ncd st && make && sudo make install\nprintf 'exec dwm\\n' > ~/.xinitrc && startx",
       done: () => !!S.wm,
     },
   ];
+
+  function loaderTry() {
+    const r = rootPart();
+    const u = r && S.fs[r.num] ? S.fs[r.num].uuid : "SPUST-NEJDRIV-blkid";
+    const ucode = has("intel-ucode") || (S.livePkgs || []).includes("intel-ucode");
+    const conf = ucode
+      ? `printf '%s\\n' 'title Arch Linux' 'linux /vmlinuz-linux' 'initrd /intel-ucode.img' 'initrd /initramfs-linux.img' 'options root=UUID=${u} rw' > /boot/loader/entries/arch.conf`
+      : `printf '%s\\n' 'title Arch Linux' 'linux /vmlinuz-linux' 'initrd /initramfs-linux.img' 'options root=UUID=${u} rw' > /boot/loader/entries/arch.conf`;
+    return [
+      "blkid",
+      "bootctl install",
+      "printf '%s\\n' 'default arch.conf' 'timeout 4' > /boot/loader/loader.conf",
+      conf,
+    ];
+  }
+
+  function microTry() {
+    if (S.grubEfi) return ["pacman -S intel-ucode", "grub-mkconfig -o /boot/grub/grub.cfg"];
+    return ["pacman -S intel-ucode", "nano /boot/loader/entries/arch.conf"];
+  }
+
+  function stepTry(step) {
+    const t = step.try;
+    if (typeof t === "function") return t().filter(Boolean);
+    return Array.isArray(t) ? t : [];
+  }
+
+  function setBeginner(on) {
+    beginner = on;
+    localStorage.setItem("arch-beginner", on ? "1" : "0");
+    const btn = $("btn-beginner");
+    if (btn) btn.textContent = on ? "režim začátečník" : "režim expert";
+    const opt = $("opt-beginner");
+    if (opt) opt.checked = on;
+    const hint = $("btn-hint");
+    if (hint) hint.textContent = on ? "Vysvětlit podrobněji" : "Nápověda (−8 čistoty)";
+    if ($("steps")) render();
+  }
+
+  function renderGuide(cur) {
+    const how = $("brief-how");
+    const box = $("brief-cmdbox");
+    const ol = $("brief-cmds");
+    if (how) how.textContent = cur.how || "";
+    if (!box || !ol) return;
+    box.classList.toggle("hidden", !beginner);
+    ol.innerHTML = "";
+    for (const line of stepTry(cur)) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cmd-chip";
+      btn.textContent = line;
+      btn.title = "Kliknutím vložíš do terminálu";
+      btn.addEventListener("click", () => {
+        const fill = line.startsWith("(") ? "" : line;
+        if (!fill) return;
+        $("cmd").value = fill;
+        $("cmd").focus();
+      });
+      li.appendChild(btn);
+      ol.appendChild(li);
+    }
+  }
+
+  function renderCommandReference() {
+    const list = $("command-list");
+    if (!list) return;
+    list.innerHTML = "";
+    for (const [command, description] of COMMAND_REFERENCE) {
+      const row = document.createElement("div");
+      row.className = "reference-row";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "reference-command";
+      button.textContent = command;
+      button.title = "Vložit do terminálu";
+      button.addEventListener("click", () => {
+        if (command.includes("PŘÍKAZ") || command.includes("...")) {
+          $("cmd").value = command.startsWith("man") ? "man " : command.split(" ")[0] + " ";
+        } else {
+          $("cmd").value = command;
+        }
+        $("cmd").focus();
+      });
+      const text = document.createElement("span");
+      text.textContent = description;
+      row.append(button, text);
+      list.appendChild(row);
+    }
+  }
 
   function currentStep() {
     return STEPS.find((s) => !s.done()) || STEPS[STEPS.length - 1];
@@ -662,6 +830,8 @@
     $("brief-text").textContent = cur.goal;
     $("brief-why").textContent = cur.why;
     $("brief-link").href = cur.wiki;
+    renderGuide(cur);
+    renderCommandReference();
     const host = S.booted ? hostnameNow() || "archlinux" : "archiso";
     let shell = "zsh";
     if (S.env !== "live") shell = "bash";
@@ -1036,7 +1206,7 @@
 
   async function dispatch(argv, io, asRoot) {
     const c = argv[0];
-    if (c === "help") return help(io);
+    if (c === "help" || c === "commands") return help(io);
     if (c === "hint") return hintCmd();
     if (c === "clear") {
       $("output").textContent = "";
@@ -1124,20 +1294,30 @@
     if (c === "sway") return startSway(io);
     if (c === "start-hyprland" || c === "Hyprland") return startHypr(c, io);
     io.err("zsh: command not found: " + c);
+    io.note("Ten příkaz hra nezná. Napiš help, nebo klikni na zelený řádek vpravo (Co napsat).");
     return false;
   }
 
   function help(io) {
-    io.log("Instalace Arch Linuxu v tomhle notebooku.");
-    io.log("Příkazy jsou ty z ArchWiki. hint ukáže příkaz k aktuálnímu kroku a ubere čistotu.");
-    io.log("Tab doplňuje, šipky berou historii, Ctrl+L maže obrazovku.");
+    const step = currentStep();
+    io.log("Aktuální krok: " + step.title);
+    if (step.how) io.log(step.how);
+    io.log("Příkazy, které teď hra čeká:");
+    for (const line of stepTry(step)) io.log("  " + line);
+    io.log("");
+    io.log("help / commands  — tahle nápověda");
+    io.log("hint             — ještě jednou, s extra textem" + (beginner ? "" : " (−8 čistoty)"));
+    io.log("man PŘÍKAZ       — krátké vysvětlení příkazu (třeba man loadkeys)");
+    io.log("clear            — smaže obrazovku (nebo Ctrl+L)");
+    io.log("Tab doplní příkaz, šipky berou historii. Klik na zelený řádek vpravo ho vloží.");
     return true;
   }
 
   function hintCmd() {
     const step = currentStep();
-    S.hints += 1;
+    if (!beginner) S.hints += 1;
     out("— " + step.title + " —", "note");
+    if (step.how) out(step.how, "dim");
     for (const line of step.hint.split("\n")) out(line, "note");
     out(step.wiki, "dim");
     return true;
@@ -1161,13 +1341,30 @@
       genfstab: "genfstab -U /mnt vypíše fstab s UUID. Přesměruj ho do /mnt/etc/fstab.",
       "arch-chroot": "arch-chroot -S /mnt spustí v chrootu systemd, aby šly UEFI proměnné.",
       loadkeys: "loadkeys cz-qwertz načte rozložení do aktuální konzole. Natrvalo je vconsole.conf.",
-      iwctl: "iwctl je klient k iwd. station wlan0 connect SSID se zeptá na heslo.",
-      fdisk: "fdisk /dev/nvme0n1  — g založí GPT, n oddíl, t typ, w zapíše.",
+      iwctl: "iwctl je klient k iwd. station wlan0 connect SSID se zeptá na heslo z nálepky (wiki4life).",
+      fdisk: "fdisk /dev/nvme0n1  — g založí GPT, n oddíl, t typ (1 EFI, 19 swap, 23 root), w zapíše.",
       "mkfs.fat": "mkfs.fat -F 32 zařízení  — FAT32 pro EFI System Partition.",
+      "mkfs.ext4": "mkfs.ext4 zařízení  — souborový systém pro root oddíl.",
+      mkswap: "mkswap zařízení  — připraví swap oddíl. Pak ho zapneš swapon.",
+      mount: "mount zařízení /mnt  — root první. ESP: mount --mkdir zařízení /mnt/boot.",
+      swapon: "swapon zařízení  — zapne swap, který jsi připravil mkswap.",
+      lsblk: "lsblk vypíše disky. Notebook je /dev/nvme0n1, flashka /dev/sda.",
+      ping: "ping -c 3 ping.archlinux.org ověří, že máš internet.",
+      timedatectl: "timedatectl ukáže čas a NTP. V live ISO stačí se podívat.",
+      pacman: "pacman -S balíček nainstaluje. V live ISO do nového systému používej pacstrap.",
+      nano: "nano soubor otevře editor. Ctrl+O uloží, Ctrl+X zavře.",
+      passwd: "passwd [uživatel] nastaví heslo. Ptá se dvakrát.",
+      useradd: "useradd -m -G wheel -s /bin/bash jméno  — home, skupina sudo, bash.",
+      visudo: "visudo edituje sudoers. Odkomentuj %wheel ALL=(ALL:ALL) ALL.",
+      nmcli: "nmcli device wifi connect arch-home password wiki4life  — Wi-Fi po restartu.",
+      systemctl: "systemctl enable NetworkManager  — služba se spustí po bootu.",
       hwclock: "hwclock --systohc zapíše /etc/adjtime. Předtím nastav localtime.",
+      blkid: "blkid vypíše UUID oddílů. UUID rootu dáš do zavaděče.",
+      help: "help vypíše příkazy k aktuálnímu kroku. Stejné jako panel vpravo.",
     };
     if (!pages[page]) {
       io.err("No manual entry for " + (page || "(prázdné)"));
+      io.note("Zkus man loadkeys, man fdisk, man pacstrap, nebo napiš help.");
       return false;
     }
     io.log(pages[page]);
@@ -3004,8 +3201,8 @@
       ul.appendChild(li);
     });
     $("fw-help").textContent = S.secureBoot
-      ? "Instalační ISO Secure Boot neumí. Než uložíš, vypni ho."
-      : "Secure Boot je vypnutý. Save & Exit nabootuje z flashky.";
+      ? "Šipkami vyber Secure Boot a zmáčkni Enter — vypne se. Pak Save & Exit."
+      : "Secure Boot je vypnutý. Šipkou dolů na Save & Exit a Enter. Nabootuje flashka.";
   }
 
   function firmwareDo() {
@@ -3083,7 +3280,9 @@
     out("Linux archiso 7.2.2-arch1-1  x86_64", "dim");
     out("root na tty1, shell je zsh, heslo není.", "dim");
     if (copyRam) out("copytoram: ISO je v RAM. Ve firmwaru je USB pořád první, takže při rebootu flashku stejně vytáhni.", "note");
-    out("Průvodce je vpravo. hint ukáže příkaz z wiki a ubere čistotu.", "dim");
+    out("Jsi root, heslo není. Vpravo je panel Co napsat — klikni na příkaz a zmáčkni Enter.", "note");
+    out("Kdykoli: help   ·   man PŘÍKAZ   ·   hint", "dim");
+    out("Příkaz je text před mezerou, jeho volby začínají pomlčkou. Když si nejsi jistý, klikni vpravo na Slovníček příkazů.", "dim");
     render();
     $("cmd").focus();
   }
@@ -3326,14 +3525,26 @@
     }
     if (e.key === "Tab") {
       e.preventDefault();
-      const names = ["help", "hint", "lsblk", "fdisk", "loadkeys", "ping", "timedatectl", "iwctl", "pacstrap", "genfstab", "arch-chroot", "pacman", "mount", "mkfs.fat", "mkfs.ext4", "mkswap", "swapon", "blkid", "bootctl", "systemctl", "nano", "passwd", "useradd", "visudo", "reboot", "nmcli", "startx", "sway", "start-hyprland"];
+      const names = ["help", "commands", "hint", "lsblk", "fdisk", "loadkeys", "ping", "timedatectl", "iwctl", "pacstrap", "genfstab", "arch-chroot", "pacman", "mount", "mkfs.fat", "mkfs.ext4", "mkswap", "swapon", "blkid", "bootctl", "systemctl", "nano", "passwd", "useradd", "visudo", "reboot", "nmcli", "startx", "sway", "start-hyprland", "man"];
+      const extra = stepTry(currentStep());
+      const all = [...new Set([...extra, ...names, ...extra.map((l) => l.split(/\s+/)[0])])];
       const cur = $("cmd").value;
-      const hit = names.find((n) => n.startsWith(cur));
-      if (hit) $("cmd").value = hit + " ";
+      const hits = all.filter((n) => n.startsWith(cur) && !n.startsWith("("));
+      if (hits.length === 1) {
+        const hit = hits[0];
+        $("cmd").value = hit.includes(" ") ? hit : hit + " ";
+      } else if (hits.length > 1) {
+        const same = hits.find((n) => n === cur) ? null : hits.sort((a, b) => a.length - b.length)[0];
+        if (same && hits.every((h) => h.startsWith(same))) $("cmd").value = same.includes(" ") ? same : same;
+      }
     }
   });
 
   document.addEventListener("keydown", bootKeys);
+
+  $("opt-beginner").addEventListener("change", (e) => setBeginner(e.target.checked));
+  $("btn-beginner").addEventListener("click", () => setBeginner(!beginner));
+  setBeginner(beginner);
 
   if (localStorage.getItem(KEY)) $("btn-continue").hidden = false;
 })();
