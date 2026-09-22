@@ -17,7 +17,16 @@
       <div class="scene-copy">
         <p class="eyebrow">Arch Linux · ISO 2026.09.01</p>
         <h1>INSTALUJ ARCH</h1>
-        <p id="intro-status" class="lead">Flashka s Arch ISO je v portu. Ve firmwaru bude USB první v pořadí bootu.</p>
+        <p id="intro-status" class="lead">Naučíš se nainstalovat Arch Linux. Do terminálu píšeš opravdové příkazy — nemusíš je znát předem.</p>
+        <ul class="intro-how">
+          <li>Nejdřív ve firmwaru <b>vypni Secure Boot</b> a ulož. Pak vyber <b>Arch Linux install medium</b>.</li>
+          <li>Vpravo uvidíš panel <b>Co napsat</b> — klikni na příkaz a zmáčkni Enter.</li>
+          <li>Kdykoli napiš <kbd>help</kbd>. <kbd>hint</kbd> krok vysvětlí ještě jednou.</li>
+        </ul>
+        <label class="beginner-opt">
+          <input id="opt-beginner" type="checkbox" checked>
+          Režim pro začátečníky (ukazuje příkazy)
+        </label>
         <div class="row">
           <button id="btn-power" class="btn primary" type="button">Zapnout notebook</button>
           <button id="btn-continue" class="btn" type="button" hidden>Pokračovat v instalaci</button>
@@ -40,7 +49,7 @@
       <p class="bios-title">Arch Linux</p>
       <p class="bios-sub">archiso · systemd-boot</p>
       <ul id="boot-list" class="bios-list"></ul>
-      <p class="bios-help">Enter spustí vybranou položku</p>
+      <p class="bios-help">Šipkami vyber první položku (install medium) a zmáčkni Enter</p>
     </div>
   </section>
 
@@ -49,7 +58,8 @@
       <div class="brand">INSTALUJ <span>ARCH</span></div>
       <div id="step-label" class="step-label">krok 1</div>
       <div class="top-right">
-        <span id="purity" title="Každá nápověda ubere 8 bodů">čistota 100</span>
+        <span id="purity" title="V expert módu každá nápověda ubere 8 bodů">čistota 100</span>
+        <button id="btn-beginner" class="icon-btn" type="button" title="Přepne zobrazení příkazů">režim začátečník</button>
         <button id="btn-sound" class="icon-btn" type="button" title="Zvuk">zvuk vyp</button>
         <a class="wiki" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">ArchWiki</a>
       </div>
@@ -71,15 +81,21 @@
             <input id="cmd" name="cmd" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Příkaz">
           </form>
         </div>
-        <p class="keys">Enter odešle · Tab doplní · ↑↓ historie · <kbd>hint</kbd> ukáže příkaz</p>
+        <p class="keys">Enter odešle · Tab doplní · klik na příkaz vpravo ho vloží · <kbd>help</kbd> nápověda</p>
       </main>
       <aside class="col brief-col">
         <article class="card">
           <h2 id="brief-title">Teď</h2>
+          <p id="brief-how" class="how"></p>
           <p id="brief-text"></p>
           <p id="brief-why" class="why"></p>
+          <div id="brief-cmdbox" class="cmdbox">
+            <h3>Co napsat</h3>
+            <p class="cmd-tip">Klikni na řádek — vloží se do terminálu. Pak Enter.</p>
+            <ol id="brief-cmds"></ol>
+          </div>
           <a id="brief-link" href="https://wiki.archlinux.org/title/Installation_guide" target="_blank" rel="noreferrer">otevřít wiki</a>
-          <button id="btn-hint" class="btn tiny" type="button">Nápověda (−8 čistoty)</button>
+          <button id="btn-hint" class="btn tiny" type="button">Vysvětlit podrobněji</button>
         </article>
         <article class="card sticker">
           <h2>Nálepky na stole</h2>
@@ -96,6 +112,11 @@
             <b>SSID arch-home</b>
             <b>heslo wiki4life</b>
           </div>
+        </article>
+        <article id="command-reference" class="card command-reference">
+          <h2>Slovníček příkazů</h2>
+          <p class="cmd-tip">Nevíš, co příkaz znamená? Klikni na něj a vlož ho do terminálu.</p>
+          <div id="command-list"></div>
         </article>
       </aside>
     </div>

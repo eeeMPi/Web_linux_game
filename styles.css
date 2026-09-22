@@ -167,7 +167,7 @@ h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr) 280px;
+  grid-template-columns: 210px minmax(0, 1fr) 320px;
   height: calc(100vh - 49px);
 }
 
@@ -257,8 +257,66 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
 }
 
 .why { color: var(--dim); font-size: 13px; }
-#brief-text { line-height: 1.45; }
-#brief-link { color: var(--cyan); font-size: 13px; display: inline-block; margin-bottom: 10px; }
+.how { color: var(--ink); font-size: 13px; line-height: 1.45; }
+#brief-text { line-height: 1.45; color: var(--dim); font-size: 13px; }
+#brief-link { color: var(--cyan); font-size: 13px; display: inline-block; margin: 8px 0 10px; }
+
+.intro-how {
+  text-align: left;
+  margin: 0 auto 16px;
+  padding-left: 20px;
+  max-width: 560px;
+  color: var(--dim);
+  line-height: 1.55;
+  font-size: 14px;
+}
+.intro-how b { color: var(--ink); }
+.intro-how kbd, .keys kbd, .cmd-tip kbd {
+  font: inherit;
+  color: var(--amber);
+  border: 1px solid var(--line);
+  padding: 0 5px;
+}
+.beginner-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.cmdbox {
+  background: #120f0c;
+  border: 1px dashed var(--amber);
+  padding: 8px;
+  margin: 10px 0;
+}
+.cmdbox h3 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.cmd-tip { margin: 0 0 8px; color: var(--dim); font-size: 12px; line-height: 1.4; }
+#brief-cmds { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.cmd-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #0a0d0a;
+  border: 1px solid #3a4a34;
+  color: var(--green);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cmd-chip:hover { border-color: var(--green); }
 
 .sticker ul { padding-left: 16px; margin: 0 0 10px; line-height: 1.55; font-size: 13px; }
 .sticker b { color: var(--ink); }
@@ -271,6 +329,32 @@ h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: u
   font-size: 13px;
 }
 .router span { color: var(--amber); letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+
+.command-reference { margin-bottom: 0; }
+.command-reference .cmd-tip { margin-bottom: 10px; }
+.reference-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0;
+  border-top: 1px solid #33291f;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.reference-command {
+  min-width: 0;
+  padding: 3px 5px;
+  overflow-wrap: anywhere;
+  text-align: left;
+  background: #0a0d0a;
+  border: 1px solid #3a4a34;
+  color: var(--green);
+  cursor: pointer;
+  font-size: 11px;
+}
+.reference-command:hover { border-color: var(--green); }
 
 .overlay {
   position: fixed;
